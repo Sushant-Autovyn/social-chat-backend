@@ -20,16 +20,29 @@ import { NotificationsModule } from './notifications/notifications.module';
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        type: 'postgres',
-        host: config.get<string>('DB_HOST', 'localhost'),
-        port: config.get<number>('DB_PORT', 5432),
-        username: config.get<string>('DB_USER', 'postgres'),
-        password: config.get<string>('DB_PASSWORD', 'your_password'),
-        database: config.get<string>('DB_NAME', 'social_chat'),
-        autoLoadEntities: true,
-        synchronize: true,
-      }),
+      useFactory: (config: ConfigService) => {
+        const databaseUrl = config.get<string>('DATABASE_URL');
+        const ssl = config.get<string>('DB_SSL') !== 'false';
+        if (databaseUrl) {
+          return {
+            type: 'postgres' as const,
+            url: databaseUrl,
+            autoLoadEntities: true,
+            synchronize: true,
+            ssl: ssl ? { rejectUnauthorized: false } : false,
+          };
+        }
+        return {
+          type: 'postgres' as const,
+          host: config.get<string>('DB_HOST', 'localhost'),
+          port: config.get<number>('DB_PORT', 5432),
+          username: config.get<string>('DB_USER', 'postgres'),
+          password: config.get<string>('DB_PASSWORD', 'your_password'),
+          database: config.get<string>('DB_NAME', 'social_chat'),
+          autoLoadEntities: true,
+          synchronize: true,
+        };
+      },
     }),
     UsersModule,
     AuthModule,
