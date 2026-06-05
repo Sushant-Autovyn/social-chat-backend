@@ -22,14 +22,14 @@ import { NotificationsModule } from './notifications/notifications.module';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
         const databaseUrl = config.get<string>('DATABASE_URL');
-        const ssl = config.get<string>('DB_SSL') !== 'false';
+        const sslEnabled = config.get<string>('DB_SSL') === 'true';
         if (databaseUrl) {
           return {
             type: 'postgres' as const,
             url: databaseUrl,
             autoLoadEntities: true,
             synchronize: true,
-            ssl: ssl ? { rejectUnauthorized: false } : false,
+            ssl: { rejectUnauthorized: false },
           };
         }
         return {
@@ -41,6 +41,7 @@ import { NotificationsModule } from './notifications/notifications.module';
           database: config.get<string>('DB_NAME', 'social_chat'),
           autoLoadEntities: true,
           synchronize: true,
+          ssl: sslEnabled ? { rejectUnauthorized: false } : false,
         };
       },
     }),
