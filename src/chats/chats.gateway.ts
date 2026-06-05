@@ -8,13 +8,16 @@ import {
   WebSocketServer,
   WsException,
 } from '@nestjs/websockets';
-import { Logger } from '@nestjs/common';
+import { forwardRef, Inject, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Server, Socket } from 'socket.io';
 import { ChatsService } from './chats.service';
 import { PresenceService } from './presence.service';
 import { JwtPayload } from '../auth/strategies/jwt.strategy';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/enums/notification-type.enum';
+import { UsersService } from '../users/users.service';
 
 interface AuthedSocket extends Socket {
   data: {
@@ -48,6 +51,9 @@ export class ChatsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly configService: ConfigService,
     private readonly chatsService: ChatsService,
     private readonly presenceService: PresenceService,
+    private readonly usersService: UsersService,
+    @Inject(forwardRef(() => NotificationsService))
+    private readonly notifications: NotificationsService,
   ) {}
 
   async handleConnection(client: Socket) {
@@ -125,7 +131,45 @@ export class ChatsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     );
 
     this.server.to(this.chatRoom(payload.chatId)).emit('message:new', message);
+
+    // Fire-and-forget notification for the other participant.
+    void this.notifyRecipient(payload.chatId, userId, payload.content).catch(
+      (err) => this.logger.warn(`notifyRecipient failed: ${String(err)}`),
+    );
+
     return { ok: true, messageId: message.id };
+  }
+
+  private async notifyRecipient(
+    chatId: number,
+    senderId: number,
+    content: string,
+  ): Promise<void> {
+    const chat = await this.chatsService.findChatById(chatId);
+    if (!chat) return;
+    const recipientId =
+      chat.userAId === senderId ? chat.userBId : chat.userAId;
+    if (!recipientId || recipientId === senderId) return;
+
+    let senderName = `User ${senderId}`;
+    try {
+      const sender = await this.usersService.findById(senderId);
+      senderName = sender.fullName || senderName;
+    } catch {
+      // ignore
+    }
+
+    const trimmed = content.trim();
+    const preview =
+      trimmed.length > 140 ? `${trimmed.slice(0, 140)}…` : trimmed;
+
+    await this.notifications.create({
+      recipientId,
+      type: NotificationType.CHAT_MESSAGE,
+      title: senderName,
+      body: preview,
+      data: { chatId, senderId },
+    });
   }
 
   @SubscribeMessage('chat:join')

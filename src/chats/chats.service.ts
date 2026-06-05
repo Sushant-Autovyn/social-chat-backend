@@ -54,6 +54,10 @@ export class ChatsService {
     });
   }
 
+  async findChatById(chatId: number): Promise<ChatEntity | null> {
+    return this.chatRepo.findOne({ where: { id: chatId } });
+  }
+
   async sendMessage(
     chatId: number,
     senderId: number,
