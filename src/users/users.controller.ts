@@ -1,7 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseIntPipe,
   Patch,
@@ -43,6 +46,12 @@ export class UsersController {
     const updated = await this.usersService.updateProfile(user.id, dto);
     const { password: _p, ...safe } = updated as any;
     return safe;
+  }
+
+  @Delete('me')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteMe(@CurrentUser() user: AuthUser): Promise<void> {
+    await this.usersService.deleteAccount(user.id);
   }
 
   @Get(':id')
