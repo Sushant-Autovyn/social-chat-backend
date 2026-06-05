@@ -6,6 +6,18 @@ import { UsersModule } from '../users/users.module';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { GoogleStrategy } from './strategies/google.strategy';
+import { FacebookStrategy } from './strategies/facebook.strategy';
+
+import type { Provider } from '@nestjs/common';
+
+const oauthStrategies: Provider[] = [];
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  oauthStrategies.push(GoogleStrategy);
+}
+if (process.env.FACEBOOK_CLIENT_ID && process.env.FACEBOOK_CLIENT_SECRET) {
+  oauthStrategies.push(FacebookStrategy);
+}
 
 @Module({
   imports: [
@@ -24,7 +36,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, ...oauthStrategies],
   exports: [AuthService, JwtModule, PassportModule],
 })
 export class AuthModule {}

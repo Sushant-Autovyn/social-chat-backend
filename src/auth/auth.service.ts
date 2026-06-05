@@ -15,6 +15,14 @@ export interface AuthResponse {
   user: Omit<UserEntity, 'password'>;
 }
 
+export interface OAuthProfile {
+  provider: 'google' | 'facebook';
+  providerId: string;
+  email: string;
+  fullName: string;
+  avatar: string | null;
+}
+
 @Injectable()
 export class AuthService {
   private readonly saltRounds = 10;
@@ -43,7 +51,7 @@ export class AuthService {
 
   async login(dto: LoginDto): Promise<AuthResponse> {
     const user = await this.usersService.findByEmail(dto.email);
-    if (!user) {
+    if (!user || !user.password) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -55,9 +63,36 @@ export class AuthService {
     return this.buildResponse(user);
   }
 
-  private buildResponse(user: UserEntity): AuthResponse {
+  async validateOAuthUser(profile: OAuthProfile): Promise<UserEntity> {
+    const existing = await this.usersService.findByEmail(profile.email);
+    if (existing) {
+      if (!existing.provider) {
+        return this.usersService.linkProvider(
+          existing,
+          profile.provider,
+          profile.providerId,
+          profile.avatar,
+        );
+      }
+      return existing;
+    }
+    return this.usersService.createUser({
+      fullName: profile.fullName,
+      email: profile.email,
+      password: null,
+      avatar: profile.avatar,
+      provider: profile.provider,
+      providerId: profile.providerId,
+    });
+  }
+
+  issueToken(user: UserEntity): string {
     const payload: JwtPayload = { sub: user.id, email: user.email };
-    const accessToken = this.jwtService.sign(payload);
+    return this.jwtService.sign(payload);
+  }
+
+  private buildResponse(user: UserEntity): AuthResponse {
+    const accessToken = this.issueToken(user);
     const { password: _password, ...safeUser } = user;
     return { accessToken, user: safeUser };
   }

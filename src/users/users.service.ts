@@ -7,8 +7,10 @@ import { ChatEntity } from '../chats/entities/chat.entity';
 export interface CreateUserDto {
   fullName: string;
   email: string;
-  password: string;
+  password: string | null;
   avatar?: string | null;
+  provider?: string | null;
+  providerId?: string | null;
 }
 
 @Injectable()
@@ -23,9 +25,23 @@ export class UsersService {
     const user = this.usersRepository.create({
       fullName: dto.fullName,
       email: dto.email,
-      password: dto.password,
+      password: dto.password ?? null,
       avatar: dto.avatar ?? null,
+      provider: dto.provider ?? null,
+      providerId: dto.providerId ?? null,
     });
+    return this.usersRepository.save(user);
+  }
+
+  async linkProvider(
+    user: UserEntity,
+    provider: string,
+    providerId: string,
+    avatar?: string | null,
+  ): Promise<UserEntity> {
+    user.provider = provider;
+    user.providerId = providerId;
+    if (avatar && !user.avatar) user.avatar = avatar;
     return this.usersRepository.save(user);
   }
 
