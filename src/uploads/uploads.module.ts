@@ -3,6 +3,7 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { UploadsController } from './uploads.controller';
 import { AuthModule } from '../auth/auth.module';
 import { UPLOAD_ROOT } from './multer.config';
+import { CloudinaryService } from './cloudinary.service';
 
 @Module({
   imports: [
@@ -14,5 +15,6 @@ import { UPLOAD_ROOT } from './multer.config';
     }),
   ],
   controllers: [UploadsController],
+  providers: [CloudinaryService],
 })
 export class UploadsModule {}

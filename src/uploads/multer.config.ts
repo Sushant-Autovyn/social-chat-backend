@@ -2,10 +2,16 @@ import { BadRequestException } from '@nestjs/common';
 import { existsSync, mkdirSync } from 'fs';
 import { extname, join } from 'path';
 import { randomUUID } from 'crypto';
-import { diskStorage } from 'multer';
+import { diskStorage, memoryStorage } from 'multer';
 import type { Request } from 'express';
 
 export const UPLOAD_ROOT = join(process.cwd(), 'uploads');
+export const USE_CLOUDINARY = !!(
+  process.env.CLOUDINARY_URL ||
+  (process.env.CLOUDINARY_CLOUD_NAME &&
+    process.env.CLOUDINARY_API_KEY &&
+    process.env.CLOUDINARY_API_SECRET)
+);
 
 export const UPLOAD_LIMITS = {
   image: 5 * 1024 * 1024, // 5 MB
@@ -40,6 +46,9 @@ export function ensureDir(dir: string): void {
 ensureDir(UPLOAD_ROOT);
 
 function buildStorage(subdir: UploadKind) {
+  if (USE_CLOUDINARY) {
+    return memoryStorage();
+  }
   const dest = join(UPLOAD_ROOT, subdir);
   ensureDir(dest);
   return diskStorage({

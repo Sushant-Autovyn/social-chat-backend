@@ -19,6 +19,7 @@ import {
   publicUrlFor,
   UploadKind,
 } from './multer.config';
+import { CloudinaryService } from './cloudinary.service';
 
 interface UploadResponse {
   url: string;
@@ -31,42 +32,60 @@ interface UploadResponse {
 @Controller('uploads')
 @UseGuards(JwtAuthGuard)
 export class UploadsController {
+  constructor(private readonly cloudinary: CloudinaryService) {}
+
   @Post('avatar')
   @UseInterceptors(FileInterceptor('file', avatarMulterOptions))
-  uploadAvatar(
+  async uploadAvatar(
     @CurrentUser() _user: AuthUser,
     @UploadedFile() file: Express.Multer.File,
     @Req() req: Request,
-  ): UploadResponse {
+  ): Promise<UploadResponse> {
     return this.toResponse(file, 'avatars', req);
   }
 
   @Post('chat-image')
   @UseInterceptors(FileInterceptor('file', chatImageMulterOptions))
-  uploadChatImage(
+  async uploadChatImage(
     @CurrentUser() _user: AuthUser,
     @UploadedFile() file: Express.Multer.File,
     @Req() req: Request,
-  ): UploadResponse {
+  ): Promise<UploadResponse> {
     return this.toResponse(file, 'chat-images', req);
   }
 
   @Post('document')
   @UseInterceptors(FileInterceptor('file', documentMulterOptions))
-  uploadDocument(
+  async uploadDocument(
     @CurrentUser() _user: AuthUser,
     @UploadedFile() file: Express.Multer.File,
     @Req() req: Request,
-  ): UploadResponse {
+  ): Promise<UploadResponse> {
     return this.toResponse(file, 'documents', req);
   }
 
-  private toResponse(
+  private async toResponse(
     file: Express.Multer.File | undefined,
     kind: UploadKind,
     req: Request,
-  ): UploadResponse {
+  ): Promise<UploadResponse> {
     if (!file) throw new BadRequestException('No file uploaded');
+
+    if (this.cloudinary.enabled) {
+      const result = await this.cloudinary.uploadBuffer(
+        file.buffer,
+        kind,
+        file.originalname,
+      );
+      return {
+        url: result.secure_url,
+        filename: result.public_id,
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size,
+      };
+    }
+
     const baseUrl = `${req.protocol}://${req.get('host')}`;
     return {
       url: publicUrlFor(kind, file.filename, baseUrl),
